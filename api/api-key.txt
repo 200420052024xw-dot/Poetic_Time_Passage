@@ -1,0 +1,14 @@
+#硅基流动
+def siliconflow():
+    url = "https://api.siliconflow.cn/v1/chat/completions"
+    headers = {
+        "Authorization": "Bearer sk-chspgejqblrojwmramlnedfbowfrezoskwbvcoexcvxoinby",  # 注意加上 Bearer
+        "Content-Type": "application/json"
+    }
+    return url,headers
+
+#NO1.API.PRO
+def picture_api():
+    api_picture = "Bearer sk-IfXIJkC4cTJ0AfcUDb701f0fD4F941EcB6501b01F2F0F1F4"
+    return api_picture
+

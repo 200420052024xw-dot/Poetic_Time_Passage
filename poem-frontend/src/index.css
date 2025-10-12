@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Noto Serif SC', serif, system-ui, -apple-system, sans-serif;
+    background-image: radial-gradient(circle at 1px 1px, rgba(139, 157, 195, 0.15) 1px, transparent 0);
+    background-size: 20px 20px;
+  }
+  
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
