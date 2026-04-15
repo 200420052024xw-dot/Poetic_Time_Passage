@@ -4,7 +4,9 @@ from tool.read import load_prompt
 import http.client
 import base64
 import json
-import os
+import re
+import uuid
+from pathlib import Path
 
 # 意境分析
 def artistic_conception(poem):
@@ -82,7 +84,12 @@ def mood_imagery_end(input):
 
 
 # 图片生成
-def picture_create(atmosphere_end, art_style_final, atmosphere_final, enhance_final, picture_name):
+def _safe_picture_name(picture_name):
+    cleaned = re.sub(r'[<>:"/\\|?*\n\r\s]+', "_", picture_name.replace("。", "").strip())
+    return cleaned[:80] or f"poem_{uuid.uuid4().hex}"
+
+
+def picture_create(atmosphere_end, art_style_final, atmosphere_final, enhance_final, picture_name, static_dir):
 
     prompt = load_prompt(
         "picture_create.txt",
@@ -93,7 +100,7 @@ def picture_create(atmosphere_end, art_style_final, atmosphere_final, enhance_fi
     )
     print(f"文生图提示词：{prompt}\n")
 
-    conn = http.client.HTTPSConnection("api.rcouyi.com")
+    conn = http.client.HTTPSConnection("api.rcouyi.com", timeout=60)
     payload = json.dumps({
         "model": "gpt-image-1",
         "prompt": prompt,
@@ -105,27 +112,40 @@ def picture_create(atmosphere_end, art_style_final, atmosphere_final, enhance_fi
 
     headers = picture()
 
-    conn.request("POST", "/v1/images/generations", payload, headers)
-    res = conn.getresponse()
+    try:
+        conn.request("POST", "/v1/images/generations", payload, headers)
+        res = conn.getresponse()
+        data_picture_bytes = res.read()
 
-    data_picture_bytes = res.read()
-    data_picture = json.loads(data_picture_bytes)
+        if res.status >= 400:
+            detail = data_picture_bytes[:300].decode("utf-8", errors="replace")
+            raise RuntimeError(f"Image API HTTP {res.status}: {detail}")
 
-    b64_str = data_picture["data"][0]["b64_json"]
-    image_data = base64.b64decode(b64_str)
+        try:
+            data_picture = json.loads(data_picture_bytes)
+            b64_str = data_picture["data"][0]["b64_json"]
+        except (json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
+            detail = data_picture_bytes[:300].decode("utf-8", errors="replace")
+            raise RuntimeError(f"Image API returned unexpected payload: {detail}") from exc
 
-    picture_name = picture_name.replace("。", "")
-    os.makedirs("static/images", exist_ok=True)
-    file_path = os.path.join("static/images", f"{picture_name}.png")
-    with open(file_path, "wb") as f:
-        f.write(image_data)
+        try:
+            image_data = base64.b64decode(b64_str)
+        except ValueError as exc:
+            raise RuntimeError("Image API returned invalid base64 image data.") from exc
 
-    print(f"图片保存成功！文件路径：{file_path}\n")
-    conn.close()
-    return f"static/images/{picture_name}.png"
+        image_dir = Path(static_dir) / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+        file_name = f"{_safe_picture_name(picture_name)}.png"
+        file_path = image_dir / file_name
+        file_path.write_bytes(image_data)
+
+        print(f"图片保存成功！文件路径：{file_path}\n")
+        return f"static/images/{file_name}"
+    finally:
+        conn.close()
 
 
-def create_picture(poem):
+def create_picture(poem, static_dir="static"):
     """
     根据古诗生成朋友圈配图
     """
@@ -151,11 +171,12 @@ def create_picture(poem):
 
     # 第三步：串行执行图片生成
     picture_path = picture_create(
-        results["mood_imagery_end"],
-        results["art_style"],
-        results["atmosphere"],
-        results["enhance"],
-        poem
+        results.get("mood_imagery_end", ""),
+        results.get("art_style", ""),
+        results.get("atmosphere", ""),
+        results.get("enhance", ""),
+        poem,
+        static_dir,
     )
 
     return picture_path

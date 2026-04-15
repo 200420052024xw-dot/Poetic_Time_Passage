@@ -1,6 +1,19 @@
 from concurrent.futures import ThreadPoolExecutor
 from tool.read import load_prompt
-from api.api  import llm
+from api.api import llm
+
+POST_COPY = "朋友圈文案"
+POSTSCRIPT = "朋友圈附言"
+POST_TIME = "朋友圈发布时间"
+LIKES = "朋友圈点赞"
+
+
+def _split_likes(value):
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if not value:
+        return []
+    return [item.strip() for item in str(value).replace("\n", "|").split("|") if item.strip()]
 
 
 def generate_poem_post(poem, poet):
@@ -38,10 +51,10 @@ def generate_poem_post(poem, poet):
     # 返回结果
     # -------------------------------
     result = {
-        "朋友圈文案": copy,
-        "朋友圈附言": postscript,
-        "朋友圈发布时间": time,
-        "朋友圈点赞": like
+        POST_COPY: copy,
+        POSTSCRIPT: postscript,
+        POST_TIME: time,
+        LIKES: _split_likes(like),
     }
 
     print(result)
