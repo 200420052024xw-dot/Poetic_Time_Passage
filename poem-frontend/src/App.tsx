@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { BookOpen, Check, Clock, Download, Heart, MessageCircleQuestion, Mic, Search, Share2, Volume2 } from 'lucide-react';
+import { BookOpen, Check, Clock, Download, Heart, MessageCircleQuestion, Mic, Search, Volume2 } from 'lucide-react';
 import './index.css';
 
 type ApiRecord = Record<string, unknown>;
@@ -296,6 +296,40 @@ function App() {
     }
   };
 
+  const collectPosterStyles = () => {
+    const cssFromSheets = Array.from(document.styleSheets).flatMap((sheet) => {
+      try {
+        return Array.from(sheet.cssRules).map((rule) => rule.cssText);
+      } catch {
+        return [];
+      }
+    });
+    const cssFromTags = Array.from(document.querySelectorAll('style')).map((style) => style.textContent ?? '');
+    return [...cssFromSheets, ...cssFromTags].join('\n');
+  };
+
+  const imageToDataUrl = async (src: string) => {
+    if (!src || src.startsWith('data:')) return src;
+    const response = await fetch(src);
+    if (!response.ok) return src;
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const inlinePosterImages = async (root: HTMLElement) => {
+    const images = Array.from(root.querySelectorAll('img'));
+    await Promise.all(images.map(async (image) => {
+      const src = image.getAttribute('src') ?? '';
+      const dataUrl = await imageToDataUrl(src);
+      image.setAttribute('src', dataUrl);
+    }));
+  };
+
   const startVoiceInput = () => {
     const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionCtor) { setErrorMessage('当前浏览器不支持语音输入，请使用文字输入。'); return; }
@@ -330,12 +364,13 @@ function App() {
     recognition.start();
   };
 
-  const downloadMomentPoster = () => {
+  const downloadMomentPoster = async () => {
     if (!momentRef.current || !currentPost) return;
     const cloned = momentRef.current.cloneNode(true) as HTMLElement;
     cloned.querySelectorAll('[data-no-poster="true"]').forEach((node) => node.remove());
+    await inlinePosterImages(cloned);
     cloned.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    const styles = Array.from(document.querySelectorAll('style')).map((style) => style.textContent ?? '').join('\n');
+    const styles = collectPosterStyles();
     const html = new XMLSerializer().serializeToString(cloned);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400"><foreignObject width="900" height="1400"><div xmlns="http://www.w3.org/1999/xhtml"><style>${styles}.poster-export{width:900px;min-height:1400px;box-sizing:border-box}</style>${html}</div></foreignObject></svg>`;
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
@@ -536,7 +571,7 @@ function App() {
         )}
 
         {page === 3 && (
-          <section className="mx-auto w-full max-w-5xl">
+          <section className="mx-auto w-full max-w-4xl">
             {!currentPost && <div className="rounded-xl border border-[#b9d7d2] bg-white p-5 text-[#536b68]">完成生成后，这里会显示朋友圈本体和下载按钮。</div>}
             {currentPost && (
               <div>

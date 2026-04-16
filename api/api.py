@@ -41,7 +41,10 @@ def _bearer_headers(token):
 _load_dotenv()
 
 CHAT_URL = os.getenv("CHAT_URL", "https://api.siliconflow.cn/v1/chat/completions")
-CHAT_HEADERS = _bearer_headers(_required_env("CHAT_API_KEY"))
+
+
+def chat_headers():
+    return _bearer_headers(_required_env("CHAT_API_KEY"))
 
 
 def picture():
@@ -81,7 +84,7 @@ def _post_chat(query, system_prompt, model="deepseek-ai/DeepSeek-V3"):
             {"role": "user", "content": query},
         ],
     }
-    response = requests.post(CHAT_URL, headers=CHAT_HEADERS, json=data, timeout=60)
+    response = requests.post(CHAT_URL, headers=chat_headers(), json=data, timeout=60)
     if response.status_code >= 400:
         raise RuntimeError(f"LLM HTTP {response.status_code}: {response.text[:300]}")
     return _read_chat_content(response)

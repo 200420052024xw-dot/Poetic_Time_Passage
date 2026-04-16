@@ -9,7 +9,7 @@
 ├── main.py                 # FastAPI 应用和本地启动入口
 ├── api/                    # 大模型和图片生成接口封装
 ├── service/                # 诗词识别、内容生成、海报和图片生成逻辑
-├── prompt/                 # 提示词模板
+├── prompt/prompts.py       # 集中管理的提示词模板
 ├── static/                 # 运行时生成的图片和海报
 ├── tool/                   # 提示词读取工具
 ├── poem-frontend/          # Vite + React 前端项目
@@ -24,7 +24,7 @@
 
 ## 环境变量
 
-在项目根目录创建 `.env` 文件，并配置以下变量：
+复制 `.env.example` 为 `.env`，并配置以下变量：
 
 ```env
 CHAT_URL=https://api.siliconflow.cn/v1/chat/completions

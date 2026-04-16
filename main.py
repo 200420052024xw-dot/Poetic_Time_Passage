@@ -1,5 +1,6 @@
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
+import re
 import shutil
 import socket
 import subprocess
@@ -29,6 +30,7 @@ import uvicorn
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 POST_COPY = "\u670b\u53cb\u5708\u6587\u6848"
 POSTSCRIPT = "\u670b\u53cb\u5708\u9644\u8a00"
@@ -126,6 +128,31 @@ def _is_port_in_use(host: str, port: int) -> bool:
         return sock.connect_ex((host, port)) == 0
 
 
+def _normalize_chinese(text: str) -> str:
+    return "".join(re.findall(r"[\u4e00-\u9fff]", text or ""))
+
+
+def _looks_like_explicit_poem_input(content: str, poem: str) -> bool:
+    plain_input = _normalize_chinese(content)
+    plain_poem = _normalize_chinese(poem)
+    clue_markers = ("写", "关于", "描述", "表达", "那句", "哪句", "类似", "适合", "想", "意境", "场景", "感觉", "不舍", "思乡", "离别")
+
+    if not plain_input or any(marker in content for marker in clue_markers):
+        return False
+    if any(mark in content for mark in ("，", "。", ",", "、")):
+        return len(plain_input) >= 7
+    if plain_poem and plain_input == plain_poem:
+        return True
+    if len(plain_input) >= 5 and plain_poem and plain_input in plain_poem:
+        return True
+    if len(plain_input) < 8 or not plain_poem:
+        return False
+
+    input_chars = set(plain_input)
+    matched_chars = sum(1 for char in input_chars if char in plain_poem)
+    return matched_chars / len(input_chars) >= 0.75
+
+
 @app.post("/recognize-poem")
 def recognize_poem(user_input: UserInput):
     content = _require_content(user_input.content)
@@ -133,12 +160,15 @@ def recognize_poem(user_input: UserInput):
     try:
         recognized = recognize_poem_content(content)
         _log(f"/recognize-poem recognized: {recognized.get(POEM, '')}")
-        recognized[CANDIDATES] = create_candidate_cards(
-            content,
-            recognized[POEM],
-            recognized[POET],
-            recognized[TITLE],
-        )
+        if _looks_like_explicit_poem_input(content, recognized[POEM]):
+            recognized[CANDIDATES] = []
+        else:
+            recognized[CANDIDATES] = create_candidate_cards(
+                content,
+                recognized[POEM],
+                recognized[POET],
+                recognized[TITLE],
+            )
         _log(f"/recognize-poem candidates: {len(recognized[CANDIDATES])}")
         return recognized
     except ValueError as exc:
