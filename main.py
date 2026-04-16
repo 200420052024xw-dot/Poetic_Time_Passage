@@ -1,4 +1,5 @@
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 import shutil
 import socket
 import subprocess
@@ -15,12 +16,10 @@ from service.display_features import (
     CANDIDATES,
     LEARNING_CARD,
     RECITATION,
-    VISUAL_BRIEF,
     answer_poem_question,
     create_candidate_cards,
     create_learning_card,
     create_recitation_text,
-    create_visual_brief,
 )
 from service.generator import generate_poem_post
 from service.picture import create_picture
@@ -93,6 +92,18 @@ class QuestionInput(BaseModel):
     question: str
 
 
+class PoemCardInput(BaseModel):
+    poem: str
+    poet: str = ""
+    title: str = ""
+
+
+class MomentInput(BaseModel):
+    poem: str
+    poet: str = ""
+    title: str = ""
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
@@ -137,35 +148,24 @@ def recognize_poem(user_input: UserInput):
 
 
 @app.post("/create-moments")
-def create_moments(user_input: UserInput):
-    content = _require_content(user_input.content)
-    _log(f"/create-moments start: {content[:40]}")
+def create_moments(moment: MomentInput):
+    poem = _require_content(moment.poem)
+    poet = moment.poet.strip()
+    poem_title = moment.title.strip()
+    _log(f"/create-moments start: {poem[:40]}")
 
     try:
-        recognized = recognize_poem_content(content)
-        _log(f"/create-moments recognized: {recognized.get(POEM, '')}")
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        with ThreadPoolExecutor() as executor:
+            future_post = executor.submit(generate_poem_post, poem, poet)
+            future_comments = executor.submit(create_comment, poem, poet)
+            future_picture = executor.submit(create_picture, poem, static_dir=STATIC_DIR)
 
-    poem = recognized[POEM]
-    poet = recognized[POET]
-    poem_title = recognized[TITLE]
-
-    try:
-        post_info = generate_poem_post(poem, poet)
-        _log("/create-moments post copy finished")
-        commenters, comments = create_comment(poem, poet)
-        _log("/create-moments comments finished")
-        candidates = create_candidate_cards(content, poem, poet, poem_title)
-        _log(f"/create-moments candidates finished: {len(candidates)}")
-        learning_card = create_learning_card(poem, poet, poem_title)
-        _log("/create-moments learning card finished")
-        visual_brief = create_visual_brief(poem, poet, poem_title)
-        _log("/create-moments visual brief finished")
-        recitation = create_recitation_text(poem, poet, poem_title)
-        _log("/create-moments recitation finished")
-        picture_path = create_picture(poem, static_dir=STATIC_DIR)
-        _log(f"/create-moments picture finished: {picture_path}")
+            post_info = future_post.result()
+            _log("/create-moments post copy finished")
+            commenters, comments = future_comments.result()
+            _log("/create-moments comments finished")
+            picture_path = future_picture.result()
+            _log(f"/create-moments picture finished: {picture_path}")
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -179,20 +179,38 @@ def create_moments(user_input: UserInput):
         POET: poet,
         POEM: poem,
         TITLE: poem_title,
-        REASON: recognized[REASON],
-        CONFIDENCE: recognized.get(CONFIDENCE, ""),
-        SOURCE: recognized.get(SOURCE, ""),
         POST_COPY: post_info.get(POST_COPY, ""),
         POSTSCRIPT: post_info.get(POSTSCRIPT, ""),
         IMAGE_PATH: f"/{picture_path}",
         POST_TIME: post_info.get(POST_TIME, ""),
         LIKES: post_info.get(LIKES, []),
         COMMENTS: comments_all,
-        CANDIDATES: candidates,
-        LEARNING_CARD: learning_card,
-        VISUAL_BRIEF: visual_brief,
-        RECITATION: recitation,
     }
+
+
+@app.post("/create-poem-card")
+def create_poem_card(card: PoemCardInput):
+    poem = _require_content(card.poem)
+    poet = card.poet.strip()
+    title = card.title.strip()
+    _log(f"/create-poem-card start: {poem[:40]}")
+    try:
+        learning_card = create_learning_card(poem, poet, title)
+        recitation = create_recitation_text(
+            poem,
+            learning_card.get("作者", poet),
+            learning_card.get("题目", title),
+        )
+        _log("/create-poem-card finished")
+        return {
+            POEM: poem,
+            POET: learning_card.get("作者", poet),
+            TITLE: learning_card.get("题目", title),
+            LEARNING_CARD: learning_card,
+            RECITATION: recitation,
+        }
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.post("/ask-poem")

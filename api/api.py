@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 import requests
+from tool.read import load_prompt
 
 
 def _load_dotenv():
@@ -87,11 +88,7 @@ def _post_chat(query, system_prompt, model="deepseek-ai/DeepSeek-V3"):
 
 
 def extract_poem(query, model="deepseek-ai/DeepSeek-V3"):
-    prompt = (
-        "You are an expert in classical Chinese poetry. Extract the classical poem "
-        "or literary Chinese phrase from the user input, correct obvious typos, "
-        "and output only the corrected text. If none exists, output an empty string."
-    )
+    prompt = load_prompt("extract_poem.txt")
     poem_first = _post_chat(query, prompt, model)
     poem_second = poem_first.replace("\u3002", "")
     poem = re.sub(r'[<>:"/\\|?*\n]', "_", poem_second)

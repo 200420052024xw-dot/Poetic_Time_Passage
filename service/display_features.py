@@ -77,7 +77,9 @@ def create_learning_card(poem: str, poet: str, title: str) -> dict:
     prompt = f"""
 你是古诗词文化解读助手。请围绕给定诗句生成适合页面展示的诗词文化解读卡片。
 必须返回 JSON 对象，不要输出 Markdown。
-字段固定为：原诗、作者、题目、白话译文、作者简介、意象分析、情感表达、适用场景。
+字段固定为：原诗、朝代、作者、题目、白话译文、作者简介、意象分析、情感表达、适用场景。
+“原诗”字段必须返回完整古诗全文，不要只返回用户给定的一句。若无法确认完整原诗，则至少返回可确认的原文并保持原句准确。
+“朝代”字段只返回朝代名称，例如“唐”“宋”“元”，不要附加说明。
 每个字段内容简洁，适合展示给普通用户。
 诗句：{poem}
 作者：{poet}
@@ -91,6 +93,7 @@ def create_learning_card(poem: str, poet: str, title: str) -> dict:
 
     return {
         "原诗": str(parsed.get("原诗", poem)).strip() or poem,
+        "朝代": str(parsed.get("朝代", "")).strip(),
         "作者": str(parsed.get("作者", poet)).strip() or poet,
         "题目": str(parsed.get("题目", title)).strip() or title,
         "白话译文": str(parsed.get("白话译文", "")).strip(),
