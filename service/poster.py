@@ -112,7 +112,7 @@ def create_poster_svg(
     filename = f"poster_{uuid.uuid4().hex}.svg"
     file_path = poster_dir / filename
 
-    poster_title = title.strip() or "Poem Poster"
+    poster_title = title.strip() or "诗境流年"
     poster_poet = poet.strip() or "Unknown"
     title_lines = _limit_lines(_wrap_text(poster_title, 12), 2)
     poem_lines = _limit_lines(_wrap_text(poem, 14), 3)

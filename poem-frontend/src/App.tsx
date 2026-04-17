@@ -162,7 +162,7 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const selectedCandidate = candidates[selectedCandidateIndex] ?? null;
-  const posterFileName = useMemo(() => `${(currentPost?.title || '诗词朋友圈').replace(/[\\/:*?"<>|]/g, '') || '诗词朋友圈'}-朋友圈海报.svg`, [currentPost?.title]);
+  const posterFileName = useMemo(() => `${(currentPost?.title || '诗境流年').replace(/[\\/:*?"<>|]/g, '') || '诗境流年'}-朋友圈海报.svg`, [currentPost?.title]);
 
   const requestJson = async <T,>(url: string, body: unknown): Promise<T> => {
     const response = await fetch(`${API_BASE_URL}${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -416,7 +416,7 @@ function App() {
                 <span className="h-px w-10 bg-[#8a6f2a]" />
                 <p className="text-sm font-semibold tracking-[0.28em] text-[#8a6f2a]">POETIC MOMENTS</p>
               </div>
-              <h1 className="text-4xl font-bold leading-tight tracking-[0.12em] md:text-6xl">诗镜流年</h1>
+              <h1 className="text-4xl font-bold leading-tight tracking-[0.12em] md:text-6xl">诗境流年</h1>
               <p className="mt-4 max-w-2xl text-lg leading-relaxed tracking-[0.08em] text-[#315f5a]">当古诗遇见 AI，诗意回到生活。</p>
             </div>
             <div className="hidden border-l border-[#d4e7e3] bg-[#f7f2df] p-8 md:flex md:flex-col md:justify-between">

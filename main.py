@@ -42,7 +42,7 @@ COMMENTER = "\u8bc4\u8bba\u4eba"
 COMMENT_CONTENT = "\u8bc4\u8bba\u5185\u5bb9"
 POSTER_PATH = "\u6d77\u62a5\u8def\u5f84"
 
-app = FastAPI(title="Poem Moments API")
+app = FastAPI(title="诗境流年 API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -119,7 +119,7 @@ def _require_content(content: str) -> str:
 
 
 def _log(message: str):
-    print(f"[Poem Moments] {message}", flush=True)
+    print(f"[诗境流年] {message}", flush=True)
 
 
 def _is_port_in_use(host: str, port: int) -> bool:
